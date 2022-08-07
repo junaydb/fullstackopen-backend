@@ -1,7 +1,26 @@
 const express = require("express");
+const morgan = require("morgan");
 const app = express();
 
-app.use(express.json());
+// morgan setup
+morgan.token("req-body", (req, res) => JSON.stringify(req.body));
+
+const morganPostConfig =
+  ":method :url :status :res[content-length] - :response-time ms - :req-body";
+
+// middleware
+app
+  .use(express.json())
+  .use(
+    morgan("tiny", {
+      skip: (req, res) => res.statusCode === 201,
+    })
+  )
+  .use(
+    morgan(morganPostConfig, {
+      skip: (req, res) => res.statusCode !== 201,
+    })
+  );
 
 let persons = [
   {
@@ -66,7 +85,7 @@ app.post("/api/persons", (req, res) => {
     newPerson.id = Math.floor(Math.random() * 1000) + 10;
     persons = persons.concat(newPerson);
 
-    res.send(persons);
+    res.status(201).send(persons);
   }
 });
 
