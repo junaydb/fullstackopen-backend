@@ -78,16 +78,15 @@ app.get("/api/persons/:id", (req, res) => {
 app.post("/api/persons", (req, res) => {
   let newPerson = req.body;
 
-  // (these checks are handled client-side instead)
-  // const duplicate = persons.find(({ name }) => newPerson.name === name);
+  const duplicate = persons.find(({ name }) => newPerson.name === name);
 
-  // if (duplicate) {
-  //   return res.status(400).json({ error: "name must be unique" });
-  // }
+  if (duplicate) {
+    return res.status(400).json({ error: "name must be unique" });
+  }
 
-  // if (!newPerson.name || !newPerson.number) {
-  //   return res.status(400).json({ error: "must include name and number" });
-  // }
+  if (!newPerson.name || !newPerson.number) {
+    return res.status(400).json({ error: "must include name and number" });
+  }
 
   const id =
     persons.length > 0 ? Math.max(...persons.map(({ id }) => id)) + 1 : 0;
