@@ -1,24 +1,35 @@
 const express = require("express");
 const morgan = require("morgan");
-const app = express();
+const cors = require("cors");
 
-// morgan setup
+// morgan config
 morgan.token("req-body", (req, res) => JSON.stringify(req.body));
+morgan.token("res-body", (req, res) => JSON.stringify(res.body));
 
 const morganPostConfig =
   ":method :url :status :res[content-length] - :response-time ms - :req-body";
+const morganErrorConfig =
+  ":method :url :status :res[content-length] - :response-time ms - :res-body";
 
-// middleware
+// create express app and configure middlewares
+const app = express();
+
 app
   .use(express.json())
+  .use(cors())
   .use(
     morgan("tiny", {
-      skip: (req, res) => res.statusCode === 201,
+      skip: (req, res) => res.statusCode === 201 || res.statusCode > 399,
     })
   )
   .use(
     morgan(morganPostConfig, {
       skip: (req, res) => res.statusCode !== 201,
+    })
+  )
+  .use(
+    morgan(morganErrorConfig, {
+      skip: (req, res) => res.statusCode < 400,
     })
   );
 
@@ -46,15 +57,15 @@ let persons = [
 ];
 
 // routes
-app.get("/api/persons", (req, res) => {
-  res.json(persons);
-});
-
 app.get("/info", (req, res) => {
   const info = `<p>Phonebook has info for ${persons.length} people</p>
   <p>${new Date()}</p>`;
 
   res.send(info);
+});
+
+app.get("/api/persons", (req, res) => {
+  res.json(persons);
 });
 
 app.get("/api/persons/:id", (req, res) => {
@@ -64,28 +75,40 @@ app.get("/api/persons/:id", (req, res) => {
   person ? res.json(person) : res.sendStatus(404);
 });
 
-app.delete("/api/persons/:id", (req, res) => {
-  const id = Number(req.params.id);
-  persons = persons.filter((person) => person.id !== id);
+app.post("/api/persons", (req, res) => {
+  let newPerson = req.body;
 
-  res.sendStatus(204);
+  // (these checks are handled client-side instead)
+  // const duplicate = persons.find(({ name }) => newPerson.name === name);
+
+  // if (duplicate) {
+  //   return res.status(400).json({ error: "name must be unique" });
+  // }
+
+  // if (!newPerson.name || !newPerson.number) {
+  //   return res.status(400).json({ error: "must include name and number" });
+  // }
+
+  const id =
+    persons.length > 0 ? Math.max(...persons.map(({ id }) => id)) + 1 : 0;
+
+  newPerson = { id, ...newPerson };
+  persons = persons.concat(newPerson);
+
+  res.status(201).send(newPerson);
 });
 
-app.post("/api/persons", (req, res) => {
-  const newPerson = req.body;
+app.delete("/api/persons/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const exists = persons.find((person) => person.id === id);
 
-  const duplicate = persons.find((person) => person.name === newPerson.name);
-
-  if (duplicate || !newPerson.name || !newPerson.number) {
-    res.status(400).json({
-      error:
-        "name must be unique and person must include both a name and number",
-    });
+  if (exists) {
+    persons = persons.filter((person) => person.id !== id);
+    res.sendStatus(204);
   } else {
-    newPerson.id = Math.floor(Math.random() * 1000) + 10;
-    persons = persons.concat(newPerson);
-
-    res.status(201).send(persons);
+    res.status(400).json({
+      message: "This person appears to be deleted already. Refresh the page.",
+    });
   }
 });
 
