@@ -16,6 +16,7 @@ const app = express();
 
 app
   .use(express.json())
+  .use(express.static("build"))
   .use(cors())
   .use(
     morgan("tiny", {
